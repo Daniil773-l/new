@@ -1,0 +1,69 @@
+name: Проверка и деплой сайта
+
+on:
+  push:
+    branches: [main]
+
+  pull_request:
+    branches: [main]
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Проверка сайта
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v6
+
+      - name: Настроить Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Проверить структуру и ссылки
+        run: node scripts/check-site.mjs
+
+  deploy:
+    name: Деплой на GitHub Pages
+
+    if: github.event_name != 'pull_request'
+
+    needs: check
+
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v6
+
+      - name: Настроить GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Загрузить сайт как артефакт
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Опубликовать сайт
+        id: deployment
+        uses: actions/deploy-pages@v4
